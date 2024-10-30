@@ -25,11 +25,16 @@ struct Claim {
 /**
  * An efficient token distributor contract based on Merkle proofs and bitmaps
  */
+
+// @audit - No ReetrancyGuard
 contract TheRewarderDistributor {
     using BitMaps for BitMaps.BitMap;
 
+    // We cannot manipulate the deployer
     address public immutable owner = msg.sender;
 
+    // mapping of token => distribution
+    // This holds DVT and WETH distributions
     mapping(IERC20 token => Distribution) public distributions;
 
     error StillDistributing();
@@ -44,6 +49,7 @@ contract TheRewarderDistributor {
         return distributions[IERC20(token)].remaining;
     }
 
+    // @audit - What is batch?
     function getNextBatchNumber(address token) external view returns (uint256) {
         return distributions[IERC20(token)].nextBatchNumber;
     }
@@ -52,6 +58,9 @@ contract TheRewarderDistributor {
         return distributions[IERC20(token)].roots[batchNumber];
     }
 
+    // @audit - Anyone can create a distribution?
+    // Cannot call create distribution if there is already a distribution and it still have
+    // remaining balance
     function createDistribution(IERC20 token, bytes32 newRoot, uint256 amount) external {
         if (amount == 0) revert NotEnoughTokensToDistribute();
         if (newRoot == bytes32(0)) revert InvalidRoot();
@@ -88,6 +97,7 @@ contract TheRewarderDistributor {
             inputClaim = inputClaims[i];
 
             uint256 wordPosition = inputClaim.batchNumber / 256;
+            // @audit - can I exploit this? bitPosition = 0? 
             uint256 bitPosition = inputClaim.batchNumber % 256;
 
             if (token != inputTokens[inputClaim.tokenIndex]) {
@@ -95,12 +105,14 @@ contract TheRewarderDistributor {
                     if (!_setClaimed(token, amount, wordPosition, bitsSet)) revert AlreadyClaimed();
                 }
 
-                token = inputTokens[inputClaim.tokenIndex];
-                bitsSet = 1 << bitPosition; // set bit at given position
-                amount = inputClaim.amount;
+                token = inputTokens[inputClaim.tokenIndex]; // dvt
+                bitsSet = 1 << bitPosition; // set bit at given position // 1
+                amount = inputClaim.amount; // amount
             } else {
                 bitsSet = bitsSet | 1 << bitPosition;
                 amount += inputClaim.amount;
+
+                // i can go here on next execution, 
             }
 
             // for the last claim
@@ -108,8 +120,8 @@ contract TheRewarderDistributor {
                 if (!_setClaimed(token, amount, wordPosition, bitsSet)) revert AlreadyClaimed();
             }
 
-            bytes32 leaf = keccak256(abi.encodePacked(msg.sender, inputClaim.amount));
-            bytes32 root = distributions[token].roots[inputClaim.batchNumber];
+            bytes32 leaf = keccak256(abi.encodePacked(msg.sender, inputClaim.amount)); // me & amount
+            bytes32 root = distributions[token].roots[inputClaim.batchNumber]; // root (can we exploit this?)
 
             if (!MerkleProof.verify(inputClaim.proof, root, leaf)) revert InvalidProof();
 

