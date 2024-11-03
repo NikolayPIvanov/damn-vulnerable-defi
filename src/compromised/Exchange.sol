@@ -33,6 +33,7 @@ contract Exchange is ReentrancyGuard {
         }
 
         // Price should be in [wei / NFT]
+        // @audit can we manipulate the median price to be lower than the 0.1 ETH?
         uint256 price = oracle.getMedianPrice(token.symbol());
         if (msg.value < price) {
             revert InvalidPayment();

@@ -49,6 +49,8 @@ contract TrustfulOracle is AccessControlEnumerable {
                 ++i;
             }
         }
+
+        // @audit-ok Removes the initializer role
         renounceRole(INITIALIZER_ROLE, msg.sender);
     }
 
@@ -62,6 +64,7 @@ contract TrustfulOracle is AccessControlEnumerable {
 
     function getAllPricesForSymbol(string memory symbol) public view returns (uint256[] memory prices) {
         uint256 numberOfSources = getRoleMemberCount(TRUSTED_SOURCE_ROLE);
+        // @audit - can I add more members?, or exploit the get role member count to be more than the length?
         prices = new uint256[](numberOfSources);
         for (uint256 i = 0; i < numberOfSources;) {
             address source = getRoleMember(TRUSTED_SOURCE_ROLE, i);
