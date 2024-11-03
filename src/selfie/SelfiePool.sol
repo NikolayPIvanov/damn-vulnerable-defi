@@ -56,11 +56,16 @@ contract SelfiePool is IERC3156FlashLender, ReentrancyGuard {
             revert UnsupportedCurrency();
         }
 
+        // @audit We can transfer the whole balance of the pool.
         token.transfer(address(_receiver), _amount);
+
+        // @audit We can callback our attacker contract (0 fee, data passed)
         if (_receiver.onFlashLoan(msg.sender, _token, _amount, 0, _data) != CALLBACK_SUCCESS) {
             revert CallbackFailed();
         }
 
+        // We need to transfer back the funds. Which means that we need to call emergency exit
+        // We can call it from gevernance only, so we must create a proposal that can be executed.
         if (!token.transferFrom(address(_receiver), address(this), _amount)) {
             revert RepayFailed();
         }
