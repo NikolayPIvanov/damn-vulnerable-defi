@@ -49,6 +49,7 @@ contract PuppetV2Pool {
 
     function calculateDepositOfWETHRequired(uint256 tokenAmount) public view returns (uint256) {
         uint256 depositFactor = 3;
+        // @audit - we can manipulate the price again
         return _getOracleQuote(tokenAmount) * depositFactor / 1 ether;
     }
 
@@ -56,7 +57,9 @@ contract PuppetV2Pool {
     function _getOracleQuote(uint256 amount) private view returns (uint256) {
         (uint256 reservesWETH, uint256 reservesToken) =
             UniswapV2Library.getReserves({factory: _uniswapFactory, tokenA: address(_weth), tokenB: address(_token)});
-
+        // Boils down to (amountA * reserveB / reserveA);
+        // Amount will be 1 => 10**18
+        // This means to get a small quote, we need to increase reserve A and/or decrease reserve B
         return UniswapV2Library.quote({amountA: amount * 10 ** 18, reserveA: reservesToken, reserveB: reservesWETH});
     }
 }
