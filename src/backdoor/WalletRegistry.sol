@@ -100,6 +100,7 @@ contract WalletRegistry is IProxyCreationCallback, Ownable {
         // Ensure the owner is a registered beneficiary
         address walletOwner;
         unchecked {
+            // @audit can I override the current users wallets?
             walletOwner = owners[0];
         }
         if (!beneficiaries[walletOwner]) {
