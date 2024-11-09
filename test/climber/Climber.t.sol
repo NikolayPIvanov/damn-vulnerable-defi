@@ -4,6 +4,7 @@ pragma solidity =0.8.25;
 
 import {Test, console} from "forge-std/Test.sol";
 import {ClimberVault} from "../../src/climber/ClimberVault.sol";
+import {ClimberExploiter} from "../../src/climber/ClimberExploiter.sol";
 import {ClimberTimelock, CallerNotTimelock, PROPOSER_ROLE, ADMIN_ROLE} from "../../src/climber/ClimberTimelock.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {DamnValuableToken} from "../../src/DamnValuableToken.sol";
@@ -85,9 +86,16 @@ contract ClimberChallenge is Test {
      * CODE YOUR SOLUTION HERE
      */
     function test_climber() public checkSolvedByPlayer {
-        
-    }
+        ClimberExploiter exploiter = new ClimberExploiter(
+            timelock,
+            vault,
+            token,
+            recovery
+        );
 
+        exploiter.exploit(true);
+    }
+    
     /**
      * CHECKS SUCCESS CONDITIONS - DO NOT TOUCH
      */

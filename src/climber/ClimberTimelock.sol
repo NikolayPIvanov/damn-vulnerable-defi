@@ -87,7 +87,9 @@ contract ClimberTimelock is ClimberTimelockBase {
 
         bytes32 id = getOperationId(targets, values, dataElements, salt);
 
+        // @audit we can call the contract before anything is checked
         for (uint8 i = 0; i < targets.length; ++i) {
+            // @audit - explit here we can call the climber vault
             targets[i].functionCallWithValue(dataElements[i], values[i]);
         }
 
